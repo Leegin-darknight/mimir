@@ -36,16 +36,16 @@ import (
 	"github.com/thanos-io/objstore"
 	filesystemstore "github.com/thanos-io/objstore/providers/filesystem"
 	"github.com/thanos-io/thanos/pkg/block"
-	thanos_metadata "github.com/thanos-io/thanos/pkg/block/metadata"
 	"github.com/thanos-io/thanos/pkg/store/labelpb"
 	"github.com/thanos-io/thanos/pkg/store/storepb"
 	"github.com/weaveworks/common/logging"
 	"go.uber.org/atomic"
-	"google.golang.org/grpc/metadata"
+	grpc_metadata "google.golang.org/grpc/metadata"
 
 	"github.com/grafana/mimir/pkg/storage/bucket"
 	"github.com/grafana/mimir/pkg/storage/bucket/filesystem"
 	mimir_tsdb "github.com/grafana/mimir/pkg/storage/tsdb"
+	"github.com/grafana/mimir/pkg/storage/tsdb/metadata"
 	mimir_testutil "github.com/grafana/mimir/pkg/storage/tsdb/testutil"
 	"github.com/grafana/mimir/pkg/storegateway/indexcache"
 	"github.com/grafana/mimir/pkg/util"
@@ -572,7 +572,7 @@ func mockLoggingLevel() logging.Level {
 func setUserIDToGRPCContext(ctx context.Context, userID string) context.Context {
 	// We have to store it in the incoming metadata because we have to emulate the
 	// case it's coming from a gRPC request, while here we're running everything in-memory.
-	return metadata.NewIncomingContext(ctx, metadata.Pairs(GrpcContextMetadataTenantID, userID))
+	return grpc_metadata.NewIncomingContext(ctx, grpc_metadata.Pairs(GrpcContextMetadataTenantID, userID))
 }
 
 func TestBucketStores_deleteLocalFilesForExcludedTenants(t *testing.T) {
@@ -699,7 +699,7 @@ func (u *userShardingStrategy) FilterUsers(ctx context.Context, userIDs []string
 	return u.users, nil
 }
 
-func (u *userShardingStrategy) FilterBlocks(ctx context.Context, userID string, metas map[ulid.ULID]*thanos_metadata.Meta, loaded map[ulid.ULID]struct{}, synced block.GaugeVec) error {
+func (u *userShardingStrategy) FilterBlocks(ctx context.Context, userID string, metas map[ulid.ULID]*metadata.Meta, loaded map[ulid.ULID]struct{}, synced block.GaugeVec) error {
 	if util.StringsContain(u.users, userID) {
 		return nil
 	}
