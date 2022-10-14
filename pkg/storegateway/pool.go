@@ -6,9 +6,12 @@
 package storegateway
 
 import (
+	"sync"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/thanos-io/thanos/pkg/pool"
+	"github.com/thanos-io/thanos/pkg/store/storepb"
 )
 
 type chunkBytesPool struct {
@@ -52,4 +55,31 @@ func (p *chunkBytesPool) Get(sz int) (*[]byte, error) {
 
 func (p *chunkBytesPool) Put(b *[]byte) {
 	p.pool.Put(b)
+}
+
+// chunksPool is a memory pool of chunk objects.
+type chunksPool struct {
+	pool sync.Pool
+}
+
+// newChunksPool creates a new chunks pool.
+func newChunksPool() *chunksPool {
+	return &chunksPool{
+		pool: sync.Pool{
+			New: func() interface{} {
+				return &storepb.Chunk{}
+			},
+		},
+	}
+}
+
+// Get returns a new chunk from the pool.
+func (p *chunksPool) get() *storepb.Chunk {
+	return p.pool.Get().(*storepb.Chunk)
+}
+
+// put returns a chunk to the pool.
+func (p *chunksPool) put(chk *storepb.Chunk) {
+	chk.Data = nil
+	p.pool.Put(chk)
 }
