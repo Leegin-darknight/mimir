@@ -11,7 +11,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/thanos-io/thanos/pkg/pool"
-	"github.com/thanos-io/thanos/pkg/store/storepb"
+
+	"github.com/grafana/mimir/pkg/storegateway/storepb"
+)
+
+const (
+	chunkSliceSize = 10_000
 )
 
 type chunkBytesPool struct {
@@ -57,29 +62,50 @@ func (p *chunkBytesPool) Put(b *[]byte) {
 	p.pool.Put(b)
 }
 
-// chunksPool is a memory pool of chunk objects.
-type chunksPool struct {
+// chunkSlicePool is a memory pool of chunk slices.
+type chunkSlicePool struct {
 	pool sync.Pool
 }
 
-// newChunksPool creates a new chunks pool.
-func newChunksPool() *chunksPool {
-	return &chunksPool{
+// newChunksSlicePool creates a new chunks pool.
+func newChunksSlicePool() *chunkSlicePool {
+	return &chunkSlicePool{
 		pool: sync.Pool{
 			New: func() interface{} {
-				return &storepb.Chunk{}
+				return &chunkSlice{
+					chunks: make([]storepb.Chunk, chunkSliceSize),
+				}
 			},
 		},
 	}
 }
 
-// Get returns a new chunk from the pool.
-func (p *chunksPool) get() *storepb.Chunk {
-	return p.pool.Get().(*storepb.Chunk)
+// get returns a chunk slice from the pool.
+func (p *chunkSlicePool) get() *chunkSlice {
+	return p.pool.Get().(*chunkSlice)
 }
 
-// put returns a chunk to the pool.
-func (p *chunksPool) put(chk *storepb.Chunk) {
+// put returns a chunk slice to the pool.
+func (p *chunkSlicePool) put(slice *chunkSlice) {
+	slice.i = 0
+	p.pool.Put(slice)
+}
+
+type chunkSlice struct {
+	chunks []storepb.Chunk
+	i      int
+}
+
+func (s *chunkSlice) next() *storepb.Chunk {
+	if s.isExhausted() {
+		return nil
+	}
+	chk := &s.chunks[s.i]
 	chk.Data = nil
-	p.pool.Put(chk)
+	s.i++
+	return chk
+}
+
+func (s *chunkSlice) isExhausted() bool {
+	return s.i >= len(s.chunks)
 }
