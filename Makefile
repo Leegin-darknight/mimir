@@ -181,7 +181,12 @@ pkg/distributor/ha_tracker.pb.go: pkg/distributor/ha_tracker.proto
 pkg/ruler/rulespb/rules.pb.go: pkg/ruler/rulespb/rules.proto
 pkg/ruler/ruler.pb.go: pkg/ruler/ruler.proto
 pkg/scheduler/schedulerpb/scheduler.pb.go: pkg/scheduler/schedulerpb/scheduler.proto
+pkg/storegateway/labelpb/types.pb.go: pkg/storegateway/labelpb/types.proto
+pkg/storegateway/prompb/types.pb.go: pkg/storegateway/prompb/types.proto
+pkg/storegateway/hintspb/hints.pb.go: pkg/storegateway/hintspb/hints.proto
 pkg/storegateway/storegatewaypb/gateway.pb.go: pkg/storegateway/storegatewaypb/gateway.proto
+pkg/storegateway/storepb/rpc.pb.go: pkg/storegateway/storepb/rpc.proto
+pkg/storegateway/storepb/types.pb.go: pkg/storegateway/storepb/types.proto
 pkg/alertmanager/alertmanagerpb/alertmanager.pb.go: pkg/alertmanager/alertmanagerpb/alertmanager.proto
 pkg/alertmanager/alertspb/alerts.pb.go: pkg/alertmanager/alertspb/alerts.proto
 
@@ -218,7 +223,7 @@ GOVOLUMES=	-v $(shell pwd)/.cache:/go/cache:$(CONTAINER_MOUNT_OPTIONS) \
 # Mount local ssh credentials to be able to clone private repos when doing `mod-check`
 SSHVOLUME=  -v ~/.ssh/:/root/.ssh:$(CONTAINER_MOUNT_OPTIONS)
 
-exes $(EXES) protos $(PROTO_GOS) lint lint-packaging-scripts test test-with-race cover shell mod-check check-protos doc format dist build-mixin format-mixin check-mixin-tests license check-license conftest-fmt check-conftest-fmt conftest-test conftest-verify: fetch-build-image
+exes $(EXES) protos $(PROTO_GOS) lint lint-packaging-scripts test test-with-race cover shell mod-check check-protos doc format dist build-mixin format-mixin check-mixin-tests license check-license conftest-fmt check-conftest-fmt conftest-test conftest-verify check-helm-tests build-helm-tests: fetch-build-image
 	@mkdir -p $(shell pwd)/.pkg
 	@mkdir -p $(shell pwd)/.cache
 	@echo
@@ -236,9 +241,7 @@ protos: ## Generates protobuf files.
 protos: $(PROTO_GOS)
 
 %.pb.go:
-	@# The store-gateway RPC is based on Thanos which uses relative references to other protos, so we need
-	@# to configure all such relative paths.
-	protoc -I $(GOPATH)/src:./vendor/github.com/thanos-io/thanos/pkg:./vendor/github.com/gogo/protobuf:./vendor:./$(@D) --gogoslick_out=plugins=grpc,Mgoogle/protobuf/any.proto=github.com/gogo/protobuf/types,:./$(@D) ./$(patsubst %.pb.go,%.proto,$@)
+	protoc -I $(GOPATH)/src:./vendor/github.com/gogo/protobuf:./vendor:./$(@D):./pkg/storegateway/storepb --gogoslick_out=plugins=grpc,Mgoogle/protobuf/any.proto=github.com/gogo/protobuf/types,:./$(@D) ./$(patsubst %.pb.go,%.proto,$@)
 
 lint-packaging-scripts: packaging/deb/control/postinst packaging/deb/control/prerm packaging/rpm/control/post packaging/rpm/control/preun
 	shellcheck $?
@@ -445,6 +448,14 @@ conftest-verify:
 conftest-test:
 	@tools/run-conftest.sh --do-dependency-update --policies-path $(HELM_REGO_POLICIES_PATH)
 
+build-helm-tests: ## Build the helm golden records.
+build-helm-tests: operations/helm/charts/mimir-distributed/charts
+	@./operations/helm/tests/build.sh
+
+check-helm-tests: ## Check the helm golden records.
+check-helm-tests: build-helm-tests
+	@./tools/find-diff-or-untracked.sh operations/helm/tests || (echo "Please rebuild helm tests output 'make build-helm-tests'" && false)
+
 endif
 
 .PHONY: check-makefiles
@@ -552,14 +563,6 @@ check-helm-jsonnet-diff: ## Check the helm jsonnet diff.
 check-helm-jsonnet-diff: operations/helm/charts/mimir-distributed/charts build-jsonnet-tests
 	@./operations/compare-helm-with-jsonnet/compare-helm-with-jsonnet.sh
 
-build-helm-tests: ## Build the helm jsonnet tests.
-build-helm-tests: operations/helm/charts/mimir-distributed/charts
-	@./operations/helm/tests/build.sh
-
-check-helm-tests: ## Check the helm jsonnet tests output.
-check-helm-tests: build-helm-tests
-	@./tools/find-diff-or-untracked.sh operations/helm/tests || (echo "Please rebuild helm tests output 'make build-helm-tests'" && false)
-
 build-jsonnet-tests: ## Build the jsonnet tests.
 	@./operations/mimir-tests/build.sh
 
@@ -624,6 +627,7 @@ dist/$(UPTODATE)-packages: $(wildcard packaging/deb/**) $(wildcard packaging/rpm
 			docs/configurations/single-process-config-blocks.yaml=/etc/mimir/config.example.yaml; \
 		$(FPM_OPTS) -t rpm  \
 			--architecture $$rpm_arch \
+			--rpm-os linux \
 			--after-install packaging/rpm/control/post \
 			--before-remove packaging/rpm/control/preun \
 			--package dist/mimir-$(VERSION)_$$arch.rpm \

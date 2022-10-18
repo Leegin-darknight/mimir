@@ -13,8 +13,6 @@ Usage of ./cmd/mimir/mimir:
     	Azure storage endpoint suffix without schema. The account name will be prefixed to this value to create the FQDN. If set to empty string, default endpoint suffix is used.
   -alertmanager-storage.azure.max-retries int
     	Number of retries for recoverable errors (default 20)
-  -alertmanager-storage.azure.msi-resource string
-    	If set, this URL is used instead of https://<storage-account-name>.<endpoint-suffix> for obtaining ServicePrincipalToken from MSI.
   -alertmanager-storage.azure.user-assigned-id string
     	User assigned identity. If empty, then System assigned identity is used.
   -alertmanager-storage.backend string
@@ -263,8 +261,6 @@ Usage of ./cmd/mimir/mimir:
     	Azure storage endpoint suffix without schema. The account name will be prefixed to this value to create the FQDN. If set to empty string, default endpoint suffix is used.
   -blocks-storage.azure.max-retries int
     	Number of retries for recoverable errors (default 20)
-  -blocks-storage.azure.msi-resource string
-    	If set, this URL is used instead of https://<storage-account-name>.<endpoint-suffix> for obtaining ServicePrincipalToken from MSI.
   -blocks-storage.azure.user-assigned-id string
     	User assigned identity. If empty, then System assigned identity is used.
   -blocks-storage.backend string
@@ -535,8 +531,6 @@ Usage of ./cmd/mimir/mimir:
     	Azure storage endpoint suffix without schema. The account name will be prefixed to this value to create the FQDN. If set to empty string, default endpoint suffix is used.
   -common.storage.azure.max-retries int
     	Number of retries for recoverable errors (default 20)
-  -common.storage.azure.msi-resource string
-    	If set, this URL is used instead of https://<storage-account-name>.<endpoint-suffix> for obtaining ServicePrincipalToken from MSI.
   -common.storage.azure.user-assigned-id string
     	User assigned identity. If empty, then System assigned identity is used.
   -common.storage.backend string
@@ -1515,8 +1509,6 @@ Usage of ./cmd/mimir/mimir:
     	Azure storage endpoint suffix without schema. The account name will be prefixed to this value to create the FQDN. If set to empty string, default endpoint suffix is used.
   -ruler-storage.azure.max-retries int
     	Number of retries for recoverable errors (default 20)
-  -ruler-storage.azure.msi-resource string
-    	If set, this URL is used instead of https://<storage-account-name>.<endpoint-suffix> for obtaining ServicePrincipalToken from MSI.
   -ruler-storage.azure.user-assigned-id string
     	User assigned identity. If empty, then System assigned identity is used.
   -ruler-storage.backend string
@@ -1877,6 +1869,10 @@ Usage of ./cmd/mimir/mimir:
     	Base path to serve all API routes from (e.g. /v1/)
   -server.register-instrumentation
     	Register the intrumentation handlers (/metrics etc). (default true)
+  -server.tls-cipher-suites string
+    	Comma-separated list of cipher suites to use. If blank, the default Go cipher suites is used.
+  -server.tls-min-version string
+    	Minimum TLS version to use. Allowed values: VersionTLS10, VersionTLS11, VersionTLS12, VersionTLS13. If blank, the Go TLS minimum version is used.
   -store-gateway.sharding-ring.consul.acl-token string
     	ACL Token used to interact with Consul.
   -store-gateway.sharding-ring.consul.cas-retry-delay duration
@@ -1968,7 +1964,7 @@ Usage of ./cmd/mimir/mimir:
   -usage-stats.enabled
     	[experimental] Enable anonymous usage reporting. (default true)
   -validation.create-grace-period duration
-    	Controls how far into the future incoming samples are accepted compared to the wall clock. Any sample with timestamp `t` will be rejected if `t > (now + validation.create-grace-period)`. (default 10m)
+    	Controls how far into the future incoming samples are accepted compared to the wall clock. Any sample with timestamp `t` will be rejected if `t > (now + validation.create-grace-period)`. Also used by query-frontend to avoid querying too far into the future. 0 to disable. (default 10m)
   -validation.enforce-metadata-metric-name
     	Enforce every metadata has a metric name. (default true)
   -validation.max-label-names-per-series int

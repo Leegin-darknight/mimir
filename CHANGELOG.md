@@ -4,21 +4,47 @@
 
 ### Grafana Mimir
 
+* [CHANGE] Flag `-azure.msi-resource` is now ignored, and will be removed in Mimir 2.7. This setting is now made automatically by Azure. #2682
+* [ENHANCEMENT] Added `<prefix>.tls-min-version` and `<prefix>.tls-cipher-suites` flags to configure cipher suites and min TLS version supported by servers. #2898
 * [ENHANCEMENT] Distributor: Add age filter to forwarding functionality, to not forward samples which are older than defined duration. If such samples are not ingested, `cortex_discarded_samples_total{reason="forwarded-sample-too-old"}` is increased. #3049 #3133
 * [ENHANCEMENT] Alerts: Added `RulerRemoteEvaluationFailing` alert, which fires when communication between the ruler and the frontend fails in remote operational mode. #3177
+* [ENHANCEMENT] Store-gateway: Reduce memory allocation when generating ids in index cache. #3179
+* [ENHANCEMENT] Query-frontend: truncate queries based on the configured creation grace period (`--validation.create-grace-period`) to avoid querying too far into the future. #3172
+* [ENHANCEMENT] Ingester: Reduce activity tracker memory allocation. #3203
+* [ENHANCEMENT] Query-frontend: Log more detailed information in the case of a failed query. #3190
 * [BUGFIX] Flusher: Add `Overrides` as a dependency to prevent panics when starting with `-target=flusher`. #3151
 
 ### Mixin
-* [BUGIX] Dashboards: Fix legend showing `persistentvolumeclaim` when using `deployment_type=baremetal` for `Disk space utilization` panels. #3173
+
+* [CHANGE] Alerts: Change `MimirSchedulerQueriesStuck` `for` time to 7 minutes to account for the time it takes for HPA to scale up. #3223
+* [ENHANCEMENT] Alerts: Add MimirRingMembersMismatch firing when a component does not have the expected number of running jobs. #2404
+* [ENHANCEMENT] Dashboards: Add optional row about the Distributor's metric forwarding feature to the `Mimir / Writes` dashboard. #3182
+* [BUGFIX] Dashboards: Fix legend showing `persistentvolumeclaim` when using `deployment_type=baremetal` for `Disk space utilization` panels. #3173
 
 ### Jsonnet
 
+* [ENHANCEMENT] Dashboards: Remove the "Instance Mapper" row from the "Alertmanager Resources Dashboard". This is a Grafana Cloud specific service and not relevant for external users. #3152
+* [BUGFIX] Fixed query-scheduler ring configuration for dedicated ruler's queries and query-frontends. #3237 #3239
+
 ### Mimirtool
+
 * [ENHANCEMENT] Added `mimirtool rules delete-namespace` command to delete all of the rule groups in a namespace including the namespace itself. #3136
 
 ### Documentation
 
+* [ENHANCEMENT] Improve `MimirQuerierAutoscalerNotActive` runbook. #3186
+* [ENHANCEMENT] Improve `MimirSchedulerQueriesStuck` runbook to reflect debug steps with querier auto-scaling enabled. #3223
+
 ### Tools
+
+* [ENHANCEMENT] Mimir rules GitHub action: Added the ability to change default value of `label` when running `prepare` command. #3236
+
+## 2.4.0-rc.1
+
+### Grafana Mimir
+
+* [BUGFIX] Fix distributor from returning a 500 status code when a 400 was received from the ingester. #3211
+* [BUGFIX] Fix incorrect OS value set in Mimir v2.3.* RPM packages. #3221
 
 ## 2.4.0-rc.0
 

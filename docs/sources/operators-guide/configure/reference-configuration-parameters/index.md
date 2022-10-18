@@ -302,6 +302,16 @@ The `server` block configures the HTTP and gRPC server of the launched service(s
 # CLI flag: -server.grpc-conn-limit
 [grpc_listen_conn_limit: <int> | default = 0]
 
+# Comma-separated list of cipher suites to use. If blank, the default Go cipher
+# suites is used.
+# CLI flag: -server.tls-cipher-suites
+[tls_cipher_suites: <string> | default = ""]
+
+# Minimum TLS version to use. Allowed values: VersionTLS10, VersionTLS11,
+# VersionTLS12, VersionTLS13. If blank, the Go TLS minimum version is used.
+# CLI flag: -server.tls-min-version
+[tls_min_version: <string> | default = ""]
+
 http_tls_config:
   # (advanced) HTTP server cert path.
   # CLI flag: -server.http-tls-cert-path
@@ -2384,7 +2394,8 @@ The `limits` block configures default and per-tenant limits imposed by component
 
 # (advanced) Controls how far into the future incoming samples are accepted
 # compared to the wall clock. Any sample with timestamp `t` will be rejected if
-# `t > (now + validation.create-grace-period)`.
+# `t > (now + validation.create-grace-period)`. Also used by query-frontend to
+# avoid querying too far into the future. 0 to disable.
 # CLI flag: -validation.create-grace-period
 [creation_grace_period: <duration> | default = 10m]
 
@@ -3630,12 +3641,6 @@ The `azure_storage_backend` block configures the connection to Azure object stor
 # (advanced) Number of retries for recoverable errors
 # CLI flag: -<prefix>.azure.max-retries
 [max_retries: <int> | default = 20]
-
-# (advanced) If set, this URL is used instead of
-# https://<storage-account-name>.<endpoint-suffix> for obtaining
-# ServicePrincipalToken from MSI.
-# CLI flag: -<prefix>.azure.msi-resource
-[msi_resource: <string> | default = ""]
 
 # (advanced) User assigned identity. If empty, then System assigned identity is
 # used.

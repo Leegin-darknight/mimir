@@ -704,6 +704,7 @@ How to **investigate**:
   - On multi-tenant Mimir clusters with **query-sharding enabled** and **only a single tenant** being affected:
     - Verify if the particular queries are hitting edge cases, where query-sharding is not benefical, by getting traces from the `Mimir / Slow Queries` dashboard and then look where time is spent. If time is spent in the query-frontend running PromQL engine, then it means query-sharding is not beneficial for this tenant. Consider disabling query-sharding or reduce the shard count using the `query_sharding_total_shards` override.
     - Otherwise and only if the queries by the tenant are within reason representing normal usage, consider scaling of queriers and potentially store-gateways.
+  - On a Mimir cluster with **querier auto-scaling enabled** after checking the health of the existing querier replicas, check to see if the auto-scaler has added additional querier replicas or if the maximum number of querier replicas has been reached and is not sufficient and should be increased.
 
 ### MimirMemcachedRequestErrors
 
@@ -1006,7 +1007,7 @@ How to **investigate**:
   ```
   kubectl describe hpa -n <namespace> keda-hpa-querier
   ```
-- Ensure KEDA custom metrics API server is up and running
+- Ensure KEDA pods are up and running
   ```
   # Assuming KEDA is running in a dedicated namespace "keda":
   kubectl get pods -n keda
@@ -1015,6 +1016,16 @@ How to **investigate**:
   ```
   # Assuming KEDA is running in a dedicated namespace "keda":
   kubectl logs -n keda deployment/keda-operator-metrics-apiserver
+  ```
+- Check KEDA operator logs
+  ```
+  # Assuming KEDA is running in a dedicated namespace "keda":
+  kubectl logs -n keda deployment/keda-operator
+  ```
+- Check that Prometheus is running (since we configure KEDA to scrape custom metrics from it by default)
+  ```
+  # Assuming Prometheus is running in namespace "default":
+  kubectl -n default get pod -lname=prometheus
   ```
 
 ### MimirContinuousTestNotRunningOnWrites
@@ -1060,6 +1071,35 @@ How to **investigate**:
 - This alert should always be actionable. There are two possible outcomes:
   1. The alert fired because of a bug in Mimir: fix it.
   1. The alert fired because of a bug or edge case in the continuous test tool, causing a false positive: fix it.
+
+### MimirDistributorForwardingErrorRate
+
+This alert fires when the Distributor is trying to forward samples to a forwarding target, but the forwarding requests
+result in errors at a high rate.
+
+How it **works**:
+
+- The alert compares the total rate of forwarding requests to the rate of forwarding requests which result in an error.
+
+How to **investigate**:
+
+- Check the `Mimir / Writes` dashboard, it should have a row named `Distributor Forwarding` which also shows the type of error if an HTTP status code was returned.
+- Check the Distributor logs, depending on the type of errors which occur the Distributor might log information about the errors.
+- Check what the forwarding targets are in use, this can be seen in the runtime config under the key `forwarding_endpoint`, then check the logs of the forwarding target(s).
+
+### MimirRingMembersMismatch
+
+This alert fires when the number of ring members does not match the number of running replicas.
+
+How it **works**:
+
+- The alert compares each component (currently just `ingester`) against the number of `up` instances for the component in that cluster.
+
+How to **investigate**:
+
+- Check the [hash ring web page]({{< relref "../reference-http-api/index.md#ingesters-ring-status" >}}) for the component for which the alert has fired, and look for unexpected instances in the list.
+- Consider manually forgetting unexpected instances in an `Unhealthy` state.
+- Ensure all the registered instances in the ring belong to the Mimir cluster for which the alert fired.
 
 ### RolloutOperatorNotReconciling
 

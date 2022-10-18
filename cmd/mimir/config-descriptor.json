@@ -169,6 +169,26 @@
           "fieldCategory": "advanced"
         },
         {
+          "kind": "field",
+          "name": "tls_cipher_suites",
+          "required": false,
+          "desc": "Comma-separated list of cipher suites to use. If blank, the default Go cipher suites is used.",
+          "fieldValue": null,
+          "fieldDefaultValue": "",
+          "fieldFlag": "server.tls-cipher-suites",
+          "fieldType": "string"
+        },
+        {
+          "kind": "field",
+          "name": "tls_min_version",
+          "required": false,
+          "desc": "Minimum TLS version to use. Allowed values: VersionTLS10, VersionTLS11, VersionTLS12, VersionTLS13. If blank, the Go TLS minimum version is used.",
+          "fieldValue": null,
+          "fieldDefaultValue": "",
+          "fieldFlag": "server.tls-min-version",
+          "fieldType": "string"
+        },
+        {
           "kind": "block",
           "name": "http_tls_config",
           "required": false,
@@ -2921,7 +2941,7 @@
           "kind": "field",
           "name": "creation_grace_period",
           "required": false,
-          "desc": "Controls how far into the future incoming samples are accepted compared to the wall clock. Any sample with timestamp `t` will be rejected if `t \u003e (now + validation.create-grace-period)`.",
+          "desc": "Controls how far into the future incoming samples are accepted compared to the wall clock. Any sample with timestamp `t` will be rejected if `t \u003e (now + validation.create-grace-period)`. Also used by query-frontend to avoid querying too far into the future. 0 to disable.",
           "fieldValue": null,
           "fieldDefaultValue": 600000000000,
           "fieldFlag": "validation.create-grace-period",
@@ -4601,17 +4621,6 @@
               "fieldDefaultValue": 20,
               "fieldFlag": "blocks-storage.azure.max-retries",
               "fieldType": "int",
-              "fieldCategory": "advanced"
-            },
-            {
-              "kind": "field",
-              "name": "msi_resource",
-              "required": false,
-              "desc": "If set, this URL is used instead of https://\u003cstorage-account-name\u003e.\u003cendpoint-suffix\u003e for obtaining ServicePrincipalToken from MSI.",
-              "fieldValue": null,
-              "fieldDefaultValue": "",
-              "fieldFlag": "blocks-storage.azure.msi-resource",
-              "fieldType": "string",
               "fieldCategory": "advanced"
             },
             {
@@ -8562,17 +8571,6 @@
             },
             {
               "kind": "field",
-              "name": "msi_resource",
-              "required": false,
-              "desc": "If set, this URL is used instead of https://\u003cstorage-account-name\u003e.\u003cendpoint-suffix\u003e for obtaining ServicePrincipalToken from MSI.",
-              "fieldValue": null,
-              "fieldDefaultValue": "",
-              "fieldFlag": "ruler-storage.azure.msi-resource",
-              "fieldType": "string",
-              "fieldCategory": "advanced"
-            },
-            {
-              "kind": "field",
               "name": "user_assigned_id",
               "required": false,
               "desc": "User assigned identity. If empty, then System assigned identity is used.",
@@ -9932,17 +9930,6 @@
               "fieldDefaultValue": 20,
               "fieldFlag": "alertmanager-storage.azure.max-retries",
               "fieldType": "int",
-              "fieldCategory": "advanced"
-            },
-            {
-              "kind": "field",
-              "name": "msi_resource",
-              "required": false,
-              "desc": "If set, this URL is used instead of https://\u003cstorage-account-name\u003e.\u003cendpoint-suffix\u003e for obtaining ServicePrincipalToken from MSI.",
-              "fieldValue": null,
-              "fieldDefaultValue": "",
-              "fieldFlag": "alertmanager-storage.azure.msi-resource",
-              "fieldType": "string",
               "fieldCategory": "advanced"
             },
             {
@@ -11632,17 +11619,6 @@
                   "fieldDefaultValue": 20,
                   "fieldFlag": "common.storage.azure.max-retries",
                   "fieldType": "int",
-                  "fieldCategory": "advanced"
-                },
-                {
-                  "kind": "field",
-                  "name": "msi_resource",
-                  "required": false,
-                  "desc": "If set, this URL is used instead of https://\u003cstorage-account-name\u003e.\u003cendpoint-suffix\u003e for obtaining ServicePrincipalToken from MSI.",
-                  "fieldValue": null,
-                  "fieldDefaultValue": "",
-                  "fieldFlag": "common.storage.azure.msi-resource",
-                  "fieldType": "string",
                   "fieldCategory": "advanced"
                 },
                 {

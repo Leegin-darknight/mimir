@@ -78,7 +78,7 @@ groups:
         There are {{ $value }} queued up queries in {{ $labels.cluster }}/{{ $labels.namespace }} {{ $labels.job }}.
     expr: |
       sum by (cluster, namespace, job) (min_over_time(cortex_query_scheduler_queue_length[1m])) > 0
-    for: 5m
+    for: 7m
     labels:
       severity: critical
   - alert: MimirMemcachedRequestErrors
@@ -125,6 +125,35 @@ groups:
     for: 5m
     labels:
       severity: critical
+  - alert: MimirDistributorForwardingErrorRate
+    annotations:
+      message: |
+        Mimir in {{ $labels.cluster }}/{{ $labels.namespace }} has a high failure rate when forwarding samples.
+    expr: |
+      sum by (cluster, namespace) (rate(cortex_distributor_forward_errors_total{}[1m]))
+      /
+      sum by (cluster, namespace) (rate(cortex_distributor_forward_requests_total{}[1m]))
+      > 0.01
+    for: 5m
+    labels:
+      severity: critical
+  - alert: MimirRingMembersMismatch
+    annotations:
+      message: |
+        Number of members in Mimir ingester hash ring does not match the expected number in {{ $labels.cluster }}/{{ $labels.namespace }}.
+    expr: |
+      (
+        avg by(cluster, namespace) (sum by(cluster, namespace, pod) (cortex_ring_members{name="ingester",job=~"(.*/)?(ingester.*|cortex|mimir|mimir-write)"}))
+        != sum by(cluster, namespace) (up{job=~"(.*/)?(ingester.*|cortex|mimir|mimir-write)"})
+      )
+      and
+      (
+        count by(cluster, namespace) (cortex_build_info) > 0
+      )
+    for: 15m
+    labels:
+      component: ingester
+      severity: warning
 - name: mimir_instance_limits_alerts
   rules:
   - alert: MimirIngesterReachingSeriesLimit

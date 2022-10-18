@@ -25,6 +25,14 @@ Entries should include a reference to the Pull Request that introduced the chang
 
 ## main / unreleased
 
+* [ENHANCEMENT] Metamonitoring: If enabled and no URL is configured, then metamonitoring metrics will be sent to
+  Mimir under the `metamonitoring` tenant; this enhancement does not apply to GEM. #3176
+* [ENHANCEMENT] Improve default rollout strategies. Now distributor, overrides_exporter, querier, query_frontend, admin_api, gateway, and graphite components can be upgraded more quickly and also can be rolled out with a single replica without downtime. #3029
+* [ENHANCEMENT] Metamonitoring: make scrape interval configurable. #2945
+* [BUGFIX] Fix an issue that caused metamonitoring secrets to be created incorrectly #3170
+* [BUGFIX] Nginx: fixed `imagePullSecret` value reference inconsistency. #3208
+* [BUGFIX] Move the activity tracker log from /data to /active-query-tracker to remove ignore log messages. #3169
+
 ## 3.2.0
 
 * [CHANGE] Nginx: replace topology key previously used in `podAntiAffinity` (`failure-domain.beta.kubernetes.io/zone`) with a different one `topologySpreadConstraints` (`kubernetes.io/hostname`). #2722
