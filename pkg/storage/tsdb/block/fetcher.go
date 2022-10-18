@@ -29,8 +29,8 @@ import (
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
 
+	"github.com/grafana/dskit/multierror"
 	"github.com/grafana/dskit/runutil"
-	"github.com/thanos-io/thanos/pkg/errutil"
 	"github.com/thanos-io/thanos/pkg/model"
 
 	"github.com/grafana/mimir/pkg/storage/tsdb/metadata"
@@ -306,7 +306,7 @@ type response struct {
 	metas   map[ulid.ULID]*metadata.Meta
 	partial map[ulid.ULID]error
 	// If metaErr > 0 it means incomplete view, so some metas, failed to be loaded.
-	metaErrs errutil.MultiError
+	metaErrs multierror.MultiError
 
 	noMetas        float64
 	corruptedMetas float64
