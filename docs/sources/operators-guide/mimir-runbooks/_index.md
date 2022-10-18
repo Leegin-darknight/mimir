@@ -350,7 +350,7 @@ How to **fix** it:
 
 This alert fires when communication between the `ruler` and the `ruler-query-frontend` fails to become established.
 
-The `ruler-query-frontend` component is exclusively used by the `ruler` to evaluate rule expressions when running in remote operational mode. If communication between these two components breaks, gaps are expected to appear in the case of recording rules or alerting rules will not fire when they should.
+The `ruler-query-frontend` component is exclusively used by the `ruler` to evaluate rule expressions while running in remote operational mode. If communication between these two components breaks, gaps appear, and recording rules or alerting rules do not fire when they should.
 
 How to **investigate**:
 
