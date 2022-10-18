@@ -1880,7 +1880,7 @@ func BenchmarkDistributor_Push(b *testing.B) {
 				return metrics, samples
 			},
 			// not really an error but :shrug:
-			expectedErr: "rpc error: code = Code(202) desc = replicas did not mach, rejecting sample:",
+			expectedErr: "replicas did not mach, rejecting sample:",
 		},
 	}
 
@@ -3027,7 +3027,8 @@ func TestHaDedupeMiddleware(t *testing.T) {
 			var gotReqs []*mimirpb.WriteRequest
 			next := func(ctx context.Context, req *mimirpb.WriteRequest, cleanup func()) (*mimirpb.WriteResponse, error) {
 				nextCallCount++
-				gotReqs = append(gotReqs, req)
+				reqCopy := *req // make a copy of the request to retain the slices as they were at the time of the request
+				gotReqs = append(gotReqs, &reqCopy)
 				cleanup()
 				return nil, nil
 			}
