@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Provenance-includes-location: https://github.com/thanos-io/thanos/blob/2be2db77/pkg/compact/compact.go
+// Provenance-includes-location: https://github.com/thanos-io/thanos/blob/35a3e3d5/pkg/runutil/runutil.go
 // Provenance-includes-license: Apache-2.0
 // Provenance-includes-copyright: The Thanos Authors.
 
@@ -11,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,7 +27,6 @@ import (
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/thanos-io/objstore"
 	"github.com/thanos-io/thanos/pkg/errutil"
-	"github.com/thanos-io/thanos/pkg/runutil"
 	"go.uber.org/atomic"
 
 	"github.com/grafana/mimir/pkg/storage/sharding"
@@ -816,7 +817,7 @@ func (c *BucketCompactor) Compact(ctx context.Context, maxCompactionTime time.Du
 			}
 		}
 
-		if err := runutil.DeleteAll(c.compactDir, ignoreDirs...); err != nil {
+		if err := deleteAll(c.compactDir, ignoreDirs...); err != nil {
 			level.Warn(c.logger).Log("msg", "failed deleting non-compaction job directories/files, some disk space usage might have leaked. Continuing", "err", err, "dir", c.compactDir)
 		}
 
@@ -989,5 +990,62 @@ func (f *ExcludeMarkedForDeletionFilter) Filter(ctx context.Context, metas map[u
 	}
 
 	f.deletionMarkMap = deletionMarkMap
+	return nil
+}
+
+// deleteAll deletes all files and directories inside the given
+// dir except for the ignoreDirs directories.
+// NOTE: deleteAll is not idempotent.
+func deleteAll(dir string, ignoreDirs ...string) error {
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return errors.Wrap(err, "read dir")
+	}
+	var groupErrs errutil.MultiError
+
+	var matchingIgnores []string
+	for _, d := range entries {
+		if !d.IsDir() {
+			if err := os.RemoveAll(filepath.Join(dir, d.Name())); err != nil {
+				groupErrs.Add(err)
+			}
+			continue
+		}
+
+		// ignoreDirs might be multi-directory paths.
+		matchingIgnores = matchingIgnores[:0]
+		ignore := false
+		for _, ignoreDir := range ignoreDirs {
+			id := strings.Split(ignoreDir, "/")
+			if id[0] == d.Name() {
+				if len(id) == 1 {
+					ignore = true
+					break
+				}
+				matchingIgnores = append(matchingIgnores, filepath.Join(id[1:]...))
+			}
+		}
+
+		if ignore {
+			continue
+		}
+
+		if len(matchingIgnores) == 0 {
+			if err := os.RemoveAll(filepath.Join(dir, d.Name())); err != nil {
+				groupErrs.Add(err)
+			}
+			continue
+		}
+		if err := deleteAll(filepath.Join(dir, d.Name()), matchingIgnores...); err != nil {
+			groupErrs.Add(err)
+		}
+	}
+
+	if groupErrs.Err() != nil {
+		return errors.Wrap(groupErrs.Err(), "delete file/dir")
+	}
 	return nil
 }
