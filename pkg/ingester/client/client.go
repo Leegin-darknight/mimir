@@ -70,3 +70,13 @@ func (cfg *Config) RegisterFlags(f *flag.FlagSet) {
 func (cfg *Config) Validate(log log.Logger) error {
 	return cfg.GRPCClientConfig.Validate(log)
 }
+
+// IngesterQueryStream_ClientAt extends the Ingester_QueryStreamClient interface to add the RecvAt method.
+type IngesterQueryStream_ClientAt interface {
+	Ingester_QueryStreamClient
+	RecvAt(*QueryStreamResponse) error
+}
+
+func (x *ingesterQueryStreamClient) RecvAt(m *QueryStreamResponse) error {
+	return x.ClientStream.RecvMsg(m)
+}
