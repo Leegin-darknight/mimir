@@ -54,8 +54,10 @@ func (d *Distributor) QueryExemplars(ctx context.Context, from, to model.Time, m
 }
 
 // QueryStream multiple ingesters via the streaming interface and returns big ol' set of chunks.
-func (d *Distributor) QueryStream(ctx context.Context, from, to model.Time, matchers ...*labels.Matcher) (*ingester_client.QueryStreamResponse, error) {
+func (d *Distributor) QueryStream(ctx context.Context, from, to model.Time, matchers ...*labels.Matcher) (*ingester_client.QueryStreamResponse, func(), error) {
 	var result *ingester_client.QueryStreamResponse
+	var cleanUpFn func()
+
 	err := instrument.CollectedRequest(ctx, "Distributor.QueryStream", d.queryDuration, instrument.ErrorCode, func(ctx context.Context) error {
 		req, err := ingester_client.ToQueryRequest(from, to, matchers)
 		if err != nil {
@@ -67,7 +69,7 @@ func (d *Distributor) QueryStream(ctx context.Context, from, to model.Time, matc
 			return err
 		}
 
-		result, err = d.queryIngesterStream(ctx, replicationSet, req)
+		result, cleanUpFn, err = d.queryIngesterStream(ctx, replicationSet, req)
 		if err != nil {
 			return err
 		}
@@ -77,7 +79,7 @@ func (d *Distributor) QueryStream(ctx context.Context, from, to model.Time, matc
 		}
 		return nil
 	})
-	return result, err
+	return result, cleanUpFn, err
 }
 
 // GetIngesters returns a replication set including all ingesters.
@@ -179,11 +181,12 @@ func mergeExemplarQueryResponses(results []interface{}) *ingester_client.Exempla
 }
 
 // queryIngesterStream queries the ingesters using the new streaming API.
-func (d *Distributor) queryIngesterStream(ctx context.Context, replicationSet ring.ReplicationSet, req *ingester_client.QueryRequest) (*ingester_client.QueryStreamResponse, error) {
+func (d *Distributor) queryIngesterStream(ctx context.Context, replicationSet ring.ReplicationSet, req *ingester_client.QueryRequest) (*ingester_client.QueryStreamResponse, func(), error) {
 	var (
 		queryLimiter = limiter.QueryLimiterFromContextWithFallback(ctx)
 		reqStats     = stats.FromContext(ctx)
-		results      = make(chan *ingester_client.QueryStreamResponse)
+		responseCh   = make(chan *ingester_client.PreallocQueryStreamResponse)
+		responses    = make([]*ingester_client.PreallocQueryStreamResponse, 0)
 		// Note we can't signal goroutines to stop by closing 'results', because it has multiple concurrent senders.
 		stop        = make(chan struct{}) // Signal all background goroutines to stop.
 		doneReading = make(chan struct{}) // Signal that the reader has stopped.
@@ -212,7 +215,7 @@ func (d *Distributor) queryIngesterStream(ctx context.Context, replicationSet ri
 			select {
 			case <-stop:
 				return
-			case response := <-results:
+			case response := <-responseCh:
 				// Accumulate any chunk series
 				for _, series := range response.Chunkseries {
 					key := ingester_client.LabelsToKeyString(mimirpb.FromLabelAdaptersToLabels(series.Labels))
@@ -239,6 +242,8 @@ func (d *Distributor) queryIngesterStream(ctx context.Context, replicationSet ri
 					}
 					hashToTimeSeries[key] = existing
 				}
+
+				responses = append(responses, response)
 			}
 		}
 	}()
@@ -257,7 +262,9 @@ func (d *Distributor) queryIngesterStream(ctx context.Context, replicationSet ri
 		defer stream.CloseSend() //nolint:errcheck
 
 		for {
-			resp, err := stream.Recv()
+			resp := ingester_client.PreallocQueryStreamResponseFromPool()
+
+			err := stream.(ingester_client.Prealloc_Ingester_QueryStreamClient).RecvAt(resp)
 			if errors.Is(err, io.EOF) {
 				break
 			} else if err != nil {
@@ -290,14 +297,14 @@ func (d *Distributor) queryIngesterStream(ctx context.Context, replicationSet ri
 			select {
 			case <-stop:
 				return nil, nil
-			case results <- resp:
+			case responseCh <- resp:
 			}
 		}
 		return nil, nil
 	})
 	close(stop)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Wait for reading loop to finish.
@@ -318,7 +325,13 @@ func (d *Distributor) queryIngesterStream(ctx context.Context, replicationSet ri
 	reqStats.AddFetchedChunkBytes(uint64(resp.ChunksSize()))
 	reqStats.AddFetchedChunks(uint64(resp.ChunksCount()))
 
-	return resp, nil
+	cleanUpFn := func() {
+		// Return responses back to the pool for future use.
+		for _, response := range responses {
+			ingester_client.ReusePreallocQueryStreamResponse(response)
+		}
+	}
+	return resp, cleanUpFn, nil
 }
 
 // Merges and dedupes two sorted slices with samples together.

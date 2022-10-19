@@ -7,10 +7,12 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net/http/httptest"
 	"strconv"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/mimir/pkg/mimirpb"
@@ -51,4 +53,53 @@ func TestMarshall(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, numSeries, len(req.Timeseries))
 	}
+}
+
+func TestPreallocQueryStreamResponseUnmarshal(t *testing.T) {
+	var preAllocResp PreallocQueryStreamResponse
+
+	const (
+		numSeries          = 10
+		numChunksPerSeries = 100
+	)
+	resp := &QueryStreamResponse{
+		Chunkseries: []TimeSeriesChunk{
+			{
+				Labels: []mimirpb.LabelAdapter{
+					{Name: "foo", Value: "bar"},
+				},
+			},
+		},
+		Timeseries: []mimirpb.TimeSeries{
+			{
+				Labels: []mimirpb.LabelAdapter{
+					{Name: "foo", Value: "bar"},
+				},
+			},
+		},
+	}
+	for i := 0; i < numSeries; i++ {
+		ss := TimeSeriesChunk{
+			Labels: []mimirpb.LabelAdapter{
+				{Name: "foo", Value: fmt.Sprintf("bar-%d", i)},
+			},
+		}
+		for j := 0; j < numChunksPerSeries; j++ {
+			ss.Chunks = append(ss.Chunks, Chunk{
+				StartTimestampMs: int64(j) * 100,
+				EndTimestampMs:   int64(j)*100 + 10,
+				Data:             []byte(fmt.Sprintf("chunk-%d", j)),
+			})
+		}
+		resp.Chunkseries = append(resp.Chunkseries, ss)
+	}
+
+	b, err := proto.Marshal(resp)
+	require.NoError(t, err)
+	require.True(t, len(b) > 0)
+
+	err = proto.Unmarshal(b, &preAllocResp)
+	require.NoError(t, err)
+
+	require.Equal(t, resp.String(), preAllocResp.QueryStreamResponse.String())
 }
