@@ -27,7 +27,6 @@
 
 ### Jsonnet
 
-* [BUGFIX] Fixed query-scheduler ring configuration for dedicated ruler's queries and query-frontends. #3237 #3239
 * [CHANGE] [Common storage configuration](https://grafana.com/docs/mimir/v2.3.x/operators-guide/configure/configure-object-storage-backend/#common-configuration) is now used to configure object storage in all components. This is a breaking change in terms of Jsonnet manifests and also a CLI flag update for components that use object storage, so it will require a rollout of those components. The changes include: #3257
   * `blocks_storage_backend` was renamed to `storage_backend` and is now used as the common storage backend for all components.
     * So were the related `blocks_storage_azure_account_(name|key)` and `blocks_storage_s3_endpoint` configurations.
@@ -45,6 +44,7 @@
     * Removing `ruler_client_type` and `alertmanager_client_type` if their value match the `storage_backend`, or renaming them to their new names otherwise.
     * Reviewing any possible extensions to `genericBlocksStorageConfig`, `rulerClientConfig` and `alertmanagerStorageClientConfig` and moving them to the corresponding new options.
     * Renaming the alertmanager's bucket name configuration from provider-specific to the new `alertmanager_storage_bucket_name` key.
+* [BUGFIX] Fixed query-scheduler ring configuration for dedicated ruler's queries and query-frontends. #3237 #3239
 
 ### Mimirtool
 
